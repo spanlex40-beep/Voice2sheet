@@ -1,0 +1,7 @@
+{
+  "name": "Voice2Sheet AI",
+  "description": "An intelligent voice transcription app that automatically logs your notes into a spreadsheet format with AI-powered transcription.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
