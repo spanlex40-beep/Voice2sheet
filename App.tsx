@@ -89,9 +89,9 @@ const App: React.FC = () => {
           targetEmail: email
         })
       });
-      alert("Petición enviada. Revisa tu Excel y Email.");
+      alert("Petición enviada. Revisa tu Excel.");
     } catch (e) {
-      alert("Error de URL.");
+      alert("Error de conexión con el Script.");
     } finally {
       setIsTestingAuth(false);
     }
@@ -140,7 +140,7 @@ const App: React.FC = () => {
             <h1 className="text-lg font-black text-slate-800 tracking-tight">Voice2Sheet <span className="text-indigo-600">AI</span></h1>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowTroubleshoot(true)} className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100"><i className="fas fa-question-circle"></i></button>
+            <button onClick={() => setShowTroubleshoot(true)} className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100"><i className="fas fa-key"></i></button>
             <button onClick={testAuth} disabled={isTestingAuth} className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100"><i className={`fas ${isTestingAuth ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i></button>
             <button onClick={() => setShowSettings(true)} className={`p-2.5 rounded-2xl border-2 ${email ? 'bg-white border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-500'}`}><i className="fas fa-cog"></i></button>
           </div>
@@ -151,20 +151,26 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-8 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-800">¿Por qué no me llega el Aviso?</h2>
+              <h2 className="text-xl font-black text-slate-800">Arreglar Error de Permisos</h2>
               <button onClick={() => setShowTroubleshoot(false)} className="text-slate-400 hover:text-rose-500"><i className="fas fa-times text-xl"></i></button>
             </div>
             <div className="space-y-6 text-[13px] text-slate-600 leading-relaxed">
-              <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200">
-                <p className="font-bold text-amber-800 mb-3">PASO 1: Activar el Reloj</p>
-                <p>Para que los recordatorios funcionen, tienes que configurar un <b>"Activador"</b> en Google Script para que se ejecute la función <code>revisarRecordatorios</code> cada minuto.</p>
+              <div className="bg-rose-50 p-5 rounded-2xl border border-rose-200">
+                <p className="font-bold text-rose-800 mb-2 uppercase text-[10px] tracking-widest">🚨 SI TE SALE "INSUFFICIENT PERMISSIONS"</p>
+                <p>Es porque intentamos usar <code>Session.getActiveUser()</code>. Sigue estos pasos para arreglarlo:</p>
+                <ol className="list-decimal list-inside mt-3 space-y-2 ml-2">
+                  <li>Borra la función <b><code>autorizarScript</code></b> vieja en Google Script.</li>
+                  <li>Pega la nueva versión (la que te acabo de dar sin <i>getActiveUser</i>).</li>
+                  <li>Selecciónala arriba y dale a <b>Ejecutar</b>.</li>
+                  <li>Acepta los permisos de Gmail.</li>
+                </ol>
               </div>
               <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200">
-                <p className="font-bold text-indigo-800 mb-3">PASO 2: Implementar Versión</p>
-                <p>Si has cambiado el código del script, recuerda darle a <b>Implementar > Gestionar implementaciones > Editar > Versión: Nueva versión</b>. Si no, Google seguirá usando el código viejo.</p>
+                <p className="font-bold text-indigo-800 mb-2">Paso Final</p>
+                <p>Recuerda siempre darle a <b>Implementar > Nueva versión</b> cada vez que cambies el código en Google, si no la App seguirá llamando al código con error.</p>
               </div>
             </div>
-            <button onClick={() => setShowTroubleshoot(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl">¡Entendido!</button>
+            <button onClick={() => setShowTroubleshoot(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg">Entendido</button>
           </div>
         </div>
       )}
@@ -174,13 +180,16 @@ const App: React.FC = () => {
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8">
             <h2 className="font-black text-2xl text-slate-800 mb-6">Configuración</h2>
             <div className="space-y-6">
-              <input 
-                type="email"
-                placeholder="tuemail@gmail.com"
-                className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); localStorage.setItem('v2s_email', e.target.value); }}
-              />
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tu Email Destinatario</label>
+                <input 
+                  type="email"
+                  placeholder="tuemail@gmail.com"
+                  className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); localStorage.setItem('v2s_email', e.target.value); }}
+                />
+              </div>
               <button onClick={() => setShowSettings(false)} className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest text-xs">Guardar</button>
             </div>
           </div>
@@ -221,3 +230,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
