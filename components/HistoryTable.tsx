@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { LogEntry } from '../types';
 
@@ -8,68 +10,83 @@ interface HistoryTableProps {
 
 export const HistoryTable: React.FC<HistoryTableProps> = ({ entries, onDeleteEntry }) => {
   return (
-    <div className="w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="bg-slate-50 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <i className="fas fa-list-ul text-indigo-600"></i>
-          <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Historial Reciente</span>
+    <div className="w-full bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-slate-50/80 px-6 py-5 border-b border-slate-200 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-100 text-indigo-600 p-2 rounded-xl">
+            <i className="fas fa-database text-xs"></i>
+          </div>
+          <span className="text-xs font-black text-slate-700 uppercase tracking-widest">Registros AI</span>
         </div>
-        <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
-          {entries.length} {entries.length === 1 ? 'entrada' : 'entradas'}
-        </span>
+        <div className="flex items-center gap-2">
+           <span className="text-[10px] font-black text-slate-400 uppercase">Local:</span>
+           <span className="text-[10px] bg-white border border-slate-200 text-slate-700 px-3 py-1 rounded-full font-black">
+            {entries.length}
+          </span>
+        </div>
       </div>
       
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-slate-50/50 text-slate-400 text-[10px] uppercase font-bold tracking-widest">
+        <table className="w-full text-left border-separate border-spacing-0">
+          <thead className="bg-slate-50/30 text-slate-400 text-[9px] uppercase font-black tracking-[0.2em]">
             <tr>
-              <th className="px-5 py-3 border-b border-slate-100 w-12 text-center">Tipo</th>
-              <th className="px-5 py-3 border-b border-slate-100">Contenido</th>
-              <th className="px-5 py-3 border-b border-slate-100 w-20 text-center">Borrar</th>
+              <th className="px-6 py-4 border-b border-slate-100 w-16 text-center">Modo</th>
+              <th className="px-6 py-4 border-b border-slate-100">Transcripción y Datos</th>
+              <th className="px-6 py-4 border-b border-slate-100 w-24 text-center">Acción</th>
             </tr>
           </thead>
           <tbody className="text-sm">
             {entries.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-5 py-20 text-center text-slate-400 italic">
-                  No hay registros guardados localmente.
+                <td colSpan={3} className="px-6 py-24 text-center">
+                  <div className="flex flex-col items-center gap-4 opacity-30">
+                    <i className="fas fa-folder-open text-5xl"></i>
+                    <p className="text-xs font-black uppercase tracking-widest">Historial Limpio</p>
+                  </div>
                 </td>
               </tr>
             ) : (
               entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-5 py-5 text-center">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center mx-auto ${
+                <tr key={entry.id} className="group hover:bg-slate-50/80 transition-all">
+                  <td className="px-6 py-6 text-center align-top">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mx-auto shadow-sm transition-transform group-hover:scale-110 ${
                       entry.type === 'reminder' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-500'
                     }`}>
                       <i className={`fas ${entry.type === 'reminder' ? 'fa-bell' : 'fa-sticky-note'} text-sm`}></i>
                     </div>
                   </td>
-                  <td className="px-5 py-5">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">{entry.date} • {entry.time}</span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                          entry.status === 'Synced' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                  <td className="px-6 py-6 align-top">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{entry.date} • {entry.time}</span>
+                        <div className={`flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${
+                          entry.status === 'Synced' ? 'bg-emerald-100 text-emerald-700' : 
+                          entry.status === 'Syncing' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
                         }`}>
-                          {entry.status}
-                        </span>
+                          <i className={`fas ${entry.status === 'Synced' ? 'fa-check-circle' : 'fa-sync fa-spin'} text-[8px]`}></i>
+                          {entry.status === 'Synced' ? 'Enviado' : 'Sincronizando'}
+                        </div>
                       </div>
-                      <p className="text-slate-700 text-sm leading-relaxed">{entry.transcription}</p>
+                      
+                      <p className="text-slate-700 text-sm font-medium leading-relaxed bg-slate-50/50 p-3 rounded-2xl border border-slate-100/50 group-hover:bg-white transition-colors">
+                        {entry.transcription}
+                      </p>
+                      
                       {entry.reminderDate && (
-                        <div className="mt-2 text-[10px] text-amber-600 font-bold bg-amber-50 self-start px-2 py-1 rounded-lg border border-amber-100">
-                          <i className="fas fa-calendar-check mr-1"></i>
-                          Aviso para: {new Date(entry.reminderDate).toLocaleString()}
+                        <div className="flex items-center gap-2 text-[10px] text-amber-700 font-black bg-amber-50/80 self-start px-3 py-1.5 rounded-xl border border-amber-100/50 shadow-sm">
+                          <i className="fas fa-clock"></i>
+                          Recordar: {new Date(entry.reminderDate).toLocaleString()}
                         </div>
                       )}
                     </div>
                   </td>
-                  <td className="px-5 py-5 text-center">
+                  <td className="px-6 py-6 text-center align-top">
                     <button 
                       onClick={() => onDeleteEntry(entry.id)}
-                      className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-100 transition-all flex items-center justify-center mx-auto"
+                      className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white hover:rotate-12 hover:scale-110 shadow-sm transition-all flex items-center justify-center mx-auto"
+                      title="Eliminar de la lista"
                     >
-                      <i className="fas fa-trash-can"></i>
+                      <i className="fas fa-trash-alt"></i>
                     </button>
                   </td>
                 </tr>
