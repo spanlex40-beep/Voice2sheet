@@ -6,7 +6,7 @@ import { LogEntry } from './types';
 import { transcribeAudio } from './services/geminiService';
 
 // --- ⚠️ ¡IMPORTANTE! PEGA AQUÍ TU URL DE GOOGLE SCRIPT (LA QUE TERMINA EN /exec) ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEa_p084aiHfByKbRGhCV_DSdDXc8FkvdVXAeWtXC4uhE-kVTRpMDjWJG8yVUoDtbJ/exec"; 
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9BhYK3UFstnV30btL5Y955j7KHMQqIylpY5r4A8jLAkO8zOAYyU_ttJc92rIz5-h/exec"; 
 
 const App: React.FC = () => {
   const [entries, setEntries] = useState<LogEntry[]>([]);
