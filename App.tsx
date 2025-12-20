@@ -64,7 +64,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error("App Error:", err);
-      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, transcription: "Error de IA o Micrófono", status: 'Error' } : e));
+      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, transcription: "Error de IA", status: 'Error' } : e));
     } finally {
       setIsProcessing(false);
     }
@@ -83,15 +83,15 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'note',
-          transcription: "🔴 TEST DE CONEXIÓN: Si recibes esto, el sistema funciona.",
+          transcription: "🔴 TEST DESDE LA APP: Si recibes esto, la URL del script es correcta.",
           date: new Date().toLocaleDateString(),
           time: new Date().toLocaleTimeString(),
           targetEmail: email
         })
       });
-      alert("Petición de prueba enviada. Revisa tu email (y carpeta SPAM) en 1 minuto.");
+      alert("Petición enviada. Si no te llega el email, es que te falta el paso de 'testPermisos' en Google Script.");
     } catch (e) {
-      alert("Error al contactar con el Script. Revisa la URL.");
+      alert("Error de red. ¿Has pegado bien la URL /exec?");
     } finally {
       setIsTestingAuth(false);
     }
@@ -123,8 +123,7 @@ const App: React.FC = () => {
       
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Synced', reminderDate } : e));
     } catch (e: any) {
-      console.error("Error enviando:", e);
-      setLastSyncError("Error de envío. ¿La URL es correcta?");
+      setLastSyncError("Error al contactar con Google.");
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Error' } : e));
     }
   };
@@ -150,96 +149,68 @@ const App: React.FC = () => {
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="bg-gradient-to-br from-indigo-600 to-violet-700 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg rotate-3">
-              <i className="fas fa-clock-rotate-left text-xl"></i>
+              <i className="fas fa-microphone-lines text-xl"></i>
             </div>
-            <div>
-              <h1 className="text-lg font-black text-slate-800 tracking-tight">Voice2Sheet <span className="text-indigo-600">PRO</span></h1>
-              <div className="flex items-center gap-1.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${email ? 'bg-emerald-500 animate-pulse' : 'bg-rose-400'}`}></div>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                  {email ? 'Sistema de Avisos Listo' : 'Email pendiente'}
-                </span>
-              </div>
-            </div>
+            <h1 className="text-lg font-black text-slate-800 tracking-tight">Voice2Sheet <span className="text-indigo-600">AI</span></h1>
           </div>
           
           <div className="flex gap-2">
-             <button 
-              onClick={testAuth} 
-              disabled={isTestingAuth}
-              className={`p-2.5 rounded-2xl transition-all border ${isTestingAuth ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100'}`}
-              title="Probar Conexión Email"
-            >
-              <i className={`fas ${isTestingAuth ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
-            </button>
             <button 
               onClick={() => setShowTroubleshoot(true)} 
-              className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
-              title="Ayuda técnica"
+              className="p-2.5 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-colors"
+              title="Solucionar Error de Permisos"
             >
-              <i className="fas fa-life-ring"></i>
+              <i className="fas fa-bolt"></i>
+            </button>
+            <button 
+              onClick={testAuth} 
+              disabled={isTestingAuth}
+              className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100"
+              title="Test de Conexión"
+            >
+              <i className={`fas ${isTestingAuth ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
             </button>
             <button 
               onClick={() => setShowSettings(true)} 
               className={`p-2.5 rounded-2xl transition-all border-2 ${email ? 'bg-white border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-500'}`}
             >
-              <i className={`fas ${email ? 'fa-cog' : 'fa-envelope'} text-lg`}></i>
+              <i className="fas fa-cog"></i>
             </button>
           </div>
         </div>
       </header>
 
-      {lastSyncError && (
-        <div className="bg-rose-500 text-white px-6 py-2 text-[10px] font-black uppercase tracking-widest text-center animate-in slide-in-from-top duration-300">
-          <i className="fas fa-circle-exclamation mr-2"></i>
-          {lastSyncError}
-        </div>
-      )}
-
       {showTroubleshoot && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-8 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-8 animate-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                <i className="fas fa-microchip text-indigo-500"></i> ¿No recibes correos?
-              </h2>
+              <h2 className="text-xl font-black text-slate-800">Arreglar Error de Permisos</h2>
               <button onClick={() => setShowTroubleshoot(false)} className="text-slate-400 hover:text-rose-500">
                 <i className="fas fa-times text-xl"></i>
               </button>
             </div>
             
-            <div className="space-y-6 text-sm text-slate-600">
-              <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100">
-                <p className="font-bold text-rose-800 text-xs mb-2 uppercase">IMPORTANTE: Autorización Forzada</p>
-                <p className="text-[11px] mb-4">Si al crear el activador no te pidió permiso, Google puede estar bloqueando el envío. Haz esto:</p>
-                <ol className="list-decimal list-inside space-y-2 text-[11px] font-medium">
-                  <li>En el editor de Google Script, selecciona la función <b><code>testPermisos</code></b> arriba.</li>
-                  <li>Pulsa el botón <b>Ejecutar</b> (el triángulo de Play).</li>
-                  <li>Te saltará una ventana de "Revisar permisos". <b>Acepta todo</b> (Avanzado -> Ir a Conector Voz).</li>
-                  <li>Una vez hecho, el "reloj" ya tendrá permiso para enviar correos solo.</li>
+            <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
+              <p>El error que has visto ocurre porque no podemos usar <code>Session.getActiveUser()</code> directamente.</p>
+              
+              <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200">
+                <p className="font-bold text-amber-800 mb-2">Haz esto en tu Google Script:</p>
+                <ol className="list-decimal list-inside space-y-3 text-[13px]">
+                  <li>Borra la línea que empieza por <code>var email = Session...</code></li>
+                  <li>Pon tu email a mano así: <br/><code className="bg-white px-2 py-1 rounded border border-amber-200 text-rose-600 block mt-1">var miEmail = "tuemail@gmail.com";</code></li>
+                  <li>Usa <code>miEmail</code> dentro del paréntesis de <code>enviarCorreo</code>.</li>
+                  <li>Dale a <b>Guardar (Disquete)</b> y luego a <b>Ejecutar</b>.</li>
                 </ol>
               </div>
-
-              <div className="space-y-4">
-                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Otras causas:</h3>
-                <ul className="space-y-3">
-                  <li className="flex gap-2">
-                    <i className="fas fa-clock text-indigo-500 mt-0.5"></i>
-                    <span><b>Zona Horaria:</b> En Google Script, ve a Ajustes (engranaje) y asegúrate de que la Zona Horaria sea la misma que tu país.</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <i className="fas fa-envelope-open text-indigo-500 mt-0.5"></i>
-                    <span><b>Spam:</b> Revisa siempre la carpeta de Correo No Deseado.</span>
-                  </li>
-                </ul>
-              </div>
+              
+              <p className="text-[11px] text-slate-400 italic">Esto activará el diálogo de "Revisar Permisos" que necesitas para que los avisos automáticos funcionen.</p>
             </div>
             
             <button 
               onClick={() => setShowTroubleshoot(false)} 
-              className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl transition-all uppercase tracking-widest text-xs"
+              className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl"
             >
-              Hecho
+              Ya lo he corregido
             </button>
           </div>
         </div>
@@ -248,19 +219,13 @@ const App: React.FC = () => {
       {showSettings && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in duration-300">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="font-black text-2xl text-slate-800 tracking-tight">Ajustes</h2>
-              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-rose-500 p-3">
-                <i className="fas fa-times text-xl"></i>
-              </button>
-            </div>
-            
+            <h2 className="font-black text-2xl text-slate-800 mb-6 tracking-tight">Tu Email</h2>
             <div className="space-y-6">
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Destino</label>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email donde recibirás los avisos</label>
                 <input 
                   type="email"
-                  placeholder="tuemail@gmail.com"
+                  placeholder="ejemplo@gmail.com"
                   className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 transition-all font-bold text-slate-700"
                   value={email}
                   onChange={(e) => {
@@ -269,12 +234,11 @@ const App: React.FC = () => {
                   }}
                 />
               </div>
-
               <button 
                 onClick={() => setShowSettings(false)} 
-                className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest"
+                className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs"
               >
-                Guardar
+                Guardar Configuración
               </button>
             </div>
           </div>
@@ -289,21 +253,22 @@ const App: React.FC = () => {
             </div>
             <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">Programar</h3>
             <p className="text-[11px] text-slate-400 mb-8 px-4 font-bold italic">"{reminderModal.tempTranscription}"</p>
-            
             <input 
               type="datetime-local"
               className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-8 text-sm outline-none focus:border-amber-500 font-bold text-slate-700"
               value={selectedReminderDate}
               onChange={(e) => setSelectedReminderDate(e.target.value)}
             />
-            
-            <button 
-              onClick={handleReminderSubmit}
-              disabled={!selectedReminderDate}
-              className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl active:scale-95 transition-all uppercase tracking-widest text-xs"
-            >
-              Agendar Recordatorio
-            </button>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleReminderSubmit}
+                disabled={!selectedReminderDate}
+                className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl uppercase tracking-widest text-xs"
+              >
+                Activar Aviso
+              </button>
+              <button onClick={() => setReminderModal({isOpen:false, entryId:null, tempTranscription:''})} className="text-xs text-slate-400 font-bold">Cancelar</button>
+            </div>
           </div>
         </div>
       )}
@@ -313,35 +278,33 @@ const App: React.FC = () => {
           <div className="lg:col-span-5 space-y-8">
             <Recorder onRecordingComplete={handleRecordingComplete} isProcessing={isProcessing} />
             
-            <div className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl text-white">
-              <h4 className="font-black text-indigo-200 text-xs uppercase tracking-widest mb-4">Estado de la conexión</h4>
-              <div className="flex items-center justify-between text-xs mb-3 border-b border-white/10 pb-2">
-                <span>Activador Google</span>
-                <span className="font-black text-emerald-300">CONFIGURADO</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span>Email configurado</span>
-                <span className={`font-black ${email ? 'text-emerald-300' : 'text-rose-300 animate-pulse'}`}>
-                  {email ? 'SÍ' : 'NO'}
-                </span>
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200">
+              <h4 className="font-black text-slate-800 text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i className="fas fa-circle-info text-indigo-500"></i> Estado del Sistema
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400">Micro y IA:</span>
+                  <span className="font-black text-emerald-500">LISTO</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400">URL del Script:</span>
+                  <span className="font-black text-emerald-500">CONECTADO</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-slate-400">Email Destino:</span>
+                  <span className={`font-black ${email ? 'text-emerald-500' : 'text-rose-500 animate-pulse'}`}>
+                    {email ? 'CONFIGURADO' : 'PENDIENTE'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-            
           <div className="lg:col-span-7">
             <HistoryTable entries={entries} onDeleteEntry={handleDeleteEntry} />
           </div>
         </div>
       </main>
-      
-      <footer className="p-10 text-center">
-        <div className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-full border border-slate-200 shadow-sm">
-          <div className={`w-2 h-2 rounded-full ${email ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}></div>
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            {email ? `Cuenta activa: ${email}` : 'Falta configurar email destino'}
-          </span>
-        </div>
-      </footer>
     </div>
   );
 };
