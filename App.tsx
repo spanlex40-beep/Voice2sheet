@@ -10,7 +10,6 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytmXCpeBF-LE
 const App: React.FC = () => {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [email, setEmail] = useState(localStorage.getItem('v2s_email') || '');
   const [showSettings, setShowSettings] = useState(false);
   
@@ -25,10 +24,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const saved = localStorage.getItem('v2s_entries');
     if (saved) setEntries(JSON.parse(saved));
-    
-    if (!process.env.API_KEY || process.env.API_KEY === "") {
-      setApiKeyMissing(true);
-    }
   }, []);
 
   useEffect(() => {
@@ -36,11 +31,6 @@ const App: React.FC = () => {
   }, [entries]);
 
   const handleRecordingComplete = async (base64Data: string, mimeType: string, durationSeconds: number, type: 'note' | 'reminder') => {
-    if (apiKeyMissing) {
-      alert("⚠️ Error: No se ha configurado la API_KEY en Vercel. Ve a Settings > Environment Variables y añade API_KEY.");
-      return;
-    }
-
     setIsProcessing(true);
     const now = new Date();
     const entryId = Math.random().toString(36).substring(2, 11);
@@ -68,10 +58,9 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error("App Error:", err);
-      let errorMsg = "[Error de IA]";
+      let errorMsg = "Error de transcripción";
       if (err.message === "API_KEY missing") {
-        errorMsg = "[Falta API_KEY en Vercel]";
-        setApiKeyMissing(true);
+        errorMsg = "Configura API_KEY en Vercel";
       }
       setEntries(prev => prev.map(e => e.id === entryId ? { ...e, transcription: errorMsg, status: 'Error' } : e));
     } finally {
@@ -96,15 +85,12 @@ const App: React.FC = () => {
       });
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Synced', reminderDate } : e));
     } catch (e) {
-      console.error("Webhook Error:", e);
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Error', reminderDate } : e));
     }
   };
 
   const handleDeleteEntry = (id: string) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar esta entrada del historial local?")) {
-      setEntries(prev => prev.filter(entry => entry.id !== id));
-    }
+    setEntries(prev => prev.filter(entry => entry.id !== id));
   };
 
   const handleReminderSubmit = async () => {
@@ -115,21 +101,8 @@ const App: React.FC = () => {
     setSelectedReminderDate('');
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem('v2s_email', email);
-    setShowSettings(false);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {apiKeyMissing && (
-        <div className="bg-rose-600 text-white px-4 py-3 text-center text-xs font-bold shadow-lg z-50 animate-pulse">
-          <i className="fas fa-exclamation-triangle mr-2"></i>
-          ACCIÓN REQUERIDA: Configura la <code className="bg-rose-800 px-1 rounded">API_KEY</code> en Vercel para activar la IA.
-        </div>
-      )}
-      
       <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -138,65 +111,54 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-800 leading-tight">Voice2Sheet <span className="text-xs font-normal text-slate-400">AI</span></h1>
-              <span className={`text-[10px] ${apiKeyMissing ? 'text-rose-500' : 'text-emerald-600'} font-bold uppercase tracking-wider flex items-center gap-1`}>
-                <span className={`w-1.5 h-1.5 ${apiKeyMissing ? 'bg-rose-500' : 'bg-emerald-500'} rounded-full`}></span>
-                {apiKeyMissing ? 'IA Desconectada' : 'IA Lista'}
-              </span>
             </div>
           </div>
           
           <button onClick={() => setShowSettings(true)} className="p-2 bg-slate-100 rounded-xl text-slate-500 hover:text-indigo-600 transition-colors">
-            <i className="fas fa-envelope text-xl"></i>
+            <i className="fas fa-cog text-xl"></i>
           </button>
         </div>
       </header>
 
       {showSettings && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="px-8 py-6 border-b flex justify-between items-center">
-              <h2 className="font-bold text-slate-800">Ajustes de Notificación</h2>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-bold text-lg">Ajustes</h2>
               <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600"><i className="fas fa-times"></i></button>
             </div>
-            <form onSubmit={handleSaveSettings} className="p-8 space-y-6">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Tu Email (opcional)</label>
-                <input 
-                  type="email"
-                  placeholder="ejemplo@gmail.com"
-                  className="w-full px-5 py-4 bg-slate-50 border rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <button type="submit" className="w-full py-5 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl hover:bg-indigo-700 transition-all active:scale-[0.98]">
-                Guardar Email
-              </button>
-            </form>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Email de contacto</label>
+            <input 
+              type="email"
+              placeholder="tu@email.com"
+              className="w-full px-4 py-3 bg-slate-50 border rounded-xl mb-6 outline-none focus:ring-2 focus:ring-indigo-500"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                localStorage.setItem('v2s_email', e.target.value);
+              }}
+            />
+            <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl">Cerrar</button>
           </div>
         </div>
       )}
 
       {reminderModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center animate-in zoom-in duration-300">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <i className="fas fa-bell text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Programar Recordatorio</h3>
-            <p className="text-xs text-slate-400 mb-6 italic">"{reminderModal.tempTranscription}"</p>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm p-8 text-center">
+            <h3 className="text-xl font-bold text-slate-800 mb-4">Programar Fecha</h3>
             <input 
               type="datetime-local"
-              className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl mb-4 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+              className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl mb-6 text-sm"
               value={selectedReminderDate}
               onChange={(e) => setSelectedReminderDate(e.target.value)}
             />
             <button 
               onClick={handleReminderSubmit}
               disabled={!selectedReminderDate}
-              className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl disabled:opacity-30 shadow-lg active:scale-95 transition-all"
+              className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl disabled:opacity-30 transition-all"
             >
-              Confirmar y Enviar
+              Guardar en Sheets
             </button>
           </div>
         </div>
@@ -204,28 +166,14 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="lg:col-span-5">
             <Recorder onRecordingComplete={handleRecordingComplete} isProcessing={isProcessing} />
-            <div className="bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden">
-              <div className="relative z-10">
-                <h3 className="text-lg font-bold mb-2 uppercase tracking-tight">Modo Sincronizado</h3>
-                <p className="text-sm text-indigo-100 leading-relaxed opacity-90">
-                  Tus grabaciones se envían a:<br/>
-                  <code className="bg-indigo-900/30 px-2 py-0.5 rounded text-[10px] break-all">Google Sheets App Script</code>
-                </p>
-              </div>
-              <i className="fas fa-cloud-arrow-up absolute -bottom-4 -right-4 text-8xl text-white/10"></i>
-            </div>
           </div>
           <div className="lg:col-span-7">
             <HistoryTable entries={entries} onDeleteEntry={handleDeleteEntry} />
           </div>
         </div>
       </main>
-      
-      <footer className="p-6 text-center text-slate-400 text-[10px] font-medium uppercase tracking-widest">
-        Voice2Sheet AI &copy; {new Date().getFullYear()} • Powered by Gemini Flash
-      </footer>
     </div>
   );
 };
