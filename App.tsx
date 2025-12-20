@@ -5,7 +5,7 @@ import { HistoryTable } from './components/HistoryTable';
 import { LogEntry } from './types';
 import { transcribeAudio } from './services/geminiService';
 
-// --- CONFIGURACIÓN URL GOOGLE SCRIPT ---
+// --- ⚠️ ¡IMPORTANTE! PEGA AQUÍ TU URL DE GOOGLE SCRIPT (LA QUE TERMINA EN /exec) ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytmXCpeBF-LEYkpZtXC_NAYYB-JpSjZKK0wXRQY99G7PbYOayxwjfbuKB3tzz9RCW4/exec"; 
 
 const App: React.FC = () => {
@@ -96,7 +96,7 @@ const App: React.FC = () => {
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Synced', reminderDate } : e));
     } catch (e: any) {
       console.error("Error enviando:", e);
-      setLastSyncError(e.message || "Error de red");
+      setLastSyncError("Error de envío. ¿La URL es correcta?");
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Error' } : e));
     }
   };
@@ -129,7 +129,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <div className={`w-1.5 h-1.5 rounded-full ${email ? 'bg-emerald-500 animate-pulse' : 'bg-rose-400'}`}></div>
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                  {email ? 'Sistema de Avisos Activo' : 'Email no configurado'}
+                  {email ? 'Listo para agendar' : 'Email pendiente'}
                 </span>
               </div>
             </div>
@@ -139,12 +139,14 @@ const App: React.FC = () => {
             <button 
               onClick={() => setShowTroubleshoot(true)} 
               className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
+              title="Configurar Reloj"
             >
-              <i className="fas fa-bolt-lightning"></i>
+              <i className="fas fa-clock"></i>
             </button>
             <button 
               onClick={() => setShowSettings(true)} 
               className={`p-2.5 rounded-2xl transition-all border-2 ${email ? 'bg-white border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-500'}`}
+              title="Ajustes"
             >
               <i className={`fas ${email ? 'fa-cog' : 'fa-envelope'} text-lg`}></i>
             </button>
@@ -152,13 +154,20 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* MODAL DE CONFIGURACIÓN DEL PROGRAMADOR */}
+      {lastSyncError && (
+        <div className="bg-rose-500 text-white px-6 py-2 text-[10px] font-black uppercase tracking-widest text-center animate-in slide-in-from-top duration-300">
+          <i className="fas fa-circle-exclamation mr-2"></i>
+          {lastSyncError}
+        </div>
+      )}
+
+      {/* MODAL DE AYUDA PROGRAMACIÓN */}
       {showTroubleshoot && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-8 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                <i className="fas fa-magic text-indigo-500"></i> Configurar el "Reloj" de Avisos
+                <i className="fas fa-magic text-indigo-500"></i> ¿Cómo funciona el Aviso?
               </h2>
               <button onClick={() => setShowTroubleshoot(false)} className="text-slate-400 hover:text-rose-500">
                 <i className="fas fa-times text-xl"></i>
@@ -166,24 +175,26 @@ const App: React.FC = () => {
             </div>
             
             <div className="space-y-6 text-sm text-slate-600">
-              <p className="bg-amber-50 text-amber-700 p-4 rounded-xl border border-amber-100 font-medium">
-                Para que los recordatorios lleguen a su hora, debes activar un "Activador" en Google Sheets.
+              <p className="bg-amber-50 text-amber-700 p-4 rounded-xl border border-amber-100 font-medium italic">
+                "Las notas se envían al instante. Los recordatorios esperan a su hora gracias al Activador que has creado en Google."
               </p>
 
               <div className="space-y-4">
-                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Paso 1: Nuevo Código en Google Script</h3>
-                <p>Copia y reemplaza todo en <b>Código.gs</b> por el nuevo motor que soporta programación (pídemelo si no lo tienes).</p>
-                
-                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Paso 2: Activar el Reloj</h3>
-                <ol className="list-decimal list-inside space-y-3 font-medium bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                  <li>En el editor de Google Script, haz clic en el icono de <b>Activadores <i className="fas fa-alarm-clock"></i></b> (un reloj en la barra lateral izquierda).</li>
-                  <li>Haz clic en el botón azul <b>"+ Añadir activador"</b> abajo a la derecha.</li>
-                  <li>En "Seleccionar función", elige: <b><code>checkReminders</code></b>.</li>
-                  <li>En "Seleccionar fuente del evento", elige: <b>Según tiempo</b>.</li>
-                  <li>En "Tipo de activador", elige: <b>Temporizador de minutos</b>.</li>
-                  <li>En "Intervalo de minutos", elige: <b>Cada minuto</b>.</li>
-                  <li>Dale a <b>Guardar</b>.</li>
-                </ol>
+                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest border-b pb-2">Verificación final</h3>
+                <ul className="space-y-3">
+                  <li className="flex gap-2">
+                    <i className="fas fa-check-circle text-emerald-500 mt-0.5"></i>
+                    <span>Has pegado el código con <code>checkReminders</code> en Código.gs</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <i className="fas fa-check-circle text-emerald-500 mt-0.5"></i>
+                    <span>Has creado el activador "Cada minuto" como en tu captura de pantalla.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <i className="fas fa-check-circle text-emerald-500 mt-0.5"></i>
+                    <span>Has configurado tu email en el icono de la carta arriba a la derecha.</span>
+                  </li>
+                </ul>
               </div>
             </div>
             
@@ -191,7 +202,7 @@ const App: React.FC = () => {
               onClick={() => setShowTroubleshoot(false)} 
               className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl transition-all uppercase tracking-widest text-xs"
             >
-              ¡Entendido, voy a configurarlo!
+              ¡Todo listo!
             </button>
           </div>
         </div>
@@ -212,7 +223,7 @@ const App: React.FC = () => {
             
             <div className="space-y-6">
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tu Email (donde recibirás todo)</label>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tu Email Destino</label>
                 <input 
                   type="email"
                   placeholder="ejemplo@gmail.com"
@@ -225,16 +236,16 @@ const App: React.FC = () => {
                 />
               </div>
 
-              <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                <p className="text-[10px] text-indigo-400 font-black uppercase mb-2">URL Google Script</p>
-                <code className="text-[9px] text-indigo-600 block truncate font-mono">{GOOGLE_SCRIPT_URL}</code>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <p className="text-[10px] text-slate-400 font-black uppercase mb-2">URL Webhook</p>
+                <code className="text-[9px] text-slate-500 block truncate font-mono">{GOOGLE_SCRIPT_URL}</code>
               </div>
 
               <button 
                 onClick={() => setShowSettings(false)} 
                 className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest"
               >
-                Listo
+                Guardar
               </button>
             </div>
           </div>
@@ -245,9 +256,9 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-sm p-10 text-center animate-in slide-in-from-bottom duration-500">
             <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8 border-4 border-amber-100 shadow-inner">
-              <i className="fas fa-calendar-check text-3xl"></i>
+              <i className="fas fa-bell text-3xl"></i>
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">¿Cuándo avisarte?</h3>
+            <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">Programar</h3>
             <p className="text-[11px] text-slate-400 mb-8 px-4 font-bold italic">"{reminderModal.tempTranscription}"</p>
             
             <input 
@@ -263,13 +274,13 @@ const App: React.FC = () => {
                 disabled={!selectedReminderDate}
                 className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl active:scale-95 transition-all uppercase tracking-widest text-xs"
               >
-                Programar Aviso
+                Confirmar Aviso
               </button>
               <button 
                 onClick={() => setReminderModal({ isOpen: false, entryId: null, tempTranscription: '' })}
                 className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-2 hover:text-rose-500"
               >
-                Cancelar
+                Cerrar
               </button>
             </div>
           </div>
@@ -283,23 +294,23 @@ const App: React.FC = () => {
             
             <div className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden text-white group">
               <div className="relative z-10">
-                <h4 className="font-black text-indigo-200 text-xs uppercase tracking-widest mb-6">Estado del Sistema</h4>
+                <h4 className="font-black text-indigo-200 text-xs uppercase tracking-widest mb-6">Estado Global</h4>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                    <span className="text-xs opacity-70">Notas Inmediatas</span>
-                    <span className="text-xs font-black text-emerald-300">ACTIVO</span>
+                    <span className="text-xs opacity-70">Sincronización Excel</span>
+                    <span className="text-xs font-black text-emerald-300">ONLINE</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                    <span className="text-xs opacity-70">Avisos Programados</span>
-                    <span className="text-xs font-black text-amber-300">ESPERANDO TRIGGER</span>
+                    <span className="text-xs opacity-70">Cola de Avisos</span>
+                    <span className="text-xs font-black text-amber-300">ESPERANDO HORA</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs opacity-70">IA Transcripción</span>
-                    <span className="text-xs font-black text-emerald-300">ONLINE</span>
+                    <span className="text-xs opacity-70">Inteligencia Artificial</span>
+                    <span className="text-xs font-black text-emerald-300">READY</span>
                   </div>
                 </div>
               </div>
-              <i className="fas fa-microchip absolute -bottom-8 -right-8 text-8xl text-white/10 group-hover:rotate-12 transition-transform"></i>
+              <i className="fas fa-robot absolute -bottom-8 -right-8 text-8xl text-white/10 group-hover:rotate-12 transition-transform"></i>
             </div>
           </div>
             
@@ -310,11 +321,10 @@ const App: React.FC = () => {
       </main>
       
       <footer className="p-10 text-center">
-        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4">Voice2Sheet Intelligent Logging</p>
         <div className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-full border border-slate-200 shadow-sm">
           <div className={`w-2 h-2 rounded-full ${email ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}></div>
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            {email ? `Conectado a: ${email}` : 'Configuración Requerida'}
+            {email ? `Cuenta activa: ${email}` : 'Sin email configurado'}
           </span>
         </div>
       </footer>
