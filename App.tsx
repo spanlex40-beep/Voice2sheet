@@ -14,7 +14,6 @@ const App: React.FC = () => {
   const [email, setEmail] = useState(localStorage.getItem('v2s_email') || '');
   const [showSettings, setShowSettings] = useState(false);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
-  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [isTestingAuth, setIsTestingAuth] = useState(false);
   
   const [reminderModal, setReminderModal] = useState<{
@@ -35,8 +34,13 @@ const App: React.FC = () => {
   }, [entries]);
 
   const handleRecordingComplete = async (base64Data: string, mimeType: string, durationSeconds: number, type: 'note' | 'reminder') => {
+    if (!email) {
+      alert("⚠️ Configura tu email en el icono del engranaje.");
+      setShowSettings(true);
+      return;
+    }
+
     setIsProcessing(true);
-    setLastSyncError(null);
     const now = new Date();
     const entryId = Math.random().toString(36).substring(2, 11);
     
@@ -63,18 +67,14 @@ const App: React.FC = () => {
         await sendToWebhook(updatedEntry);
       }
     } catch (err: any) {
-      console.error("App Error:", err);
-      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, transcription: "Error de IA", status: 'Error' } : e));
+      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, transcription: "Error", status: 'Error' } : e));
     } finally {
       setIsProcessing(false);
     }
   };
 
   const testAuth = async () => {
-    if (!email) {
-      setShowSettings(true);
-      return;
-    }
+    if (!email) { setShowSettings(true); return; }
     setIsTestingAuth(true);
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
@@ -83,29 +83,21 @@ const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'note',
-          transcription: "🔴 TEST DESDE LA APP: Si recibes esto, la URL del script es correcta.",
+          transcription: "🧪 PRUEBA MANUAL: La conexión funciona.",
           date: new Date().toLocaleDateString(),
           time: new Date().toLocaleTimeString(),
           targetEmail: email
         })
       });
-      alert("Petición enviada. Si no te llega el email, es que te falta el paso de 'testPermisos' en Google Script.");
+      alert("Petición enviada. Revisa tu Excel y Email.");
     } catch (e) {
-      alert("Error de red. ¿Has pegado bien la URL /exec?");
+      alert("Error de URL.");
     } finally {
       setIsTestingAuth(false);
     }
   };
 
   const sendToWebhook = async (entry: LogEntry, reminderDate?: string) => {
-    const currentEmail = localStorage.getItem('v2s_email') || '';
-    if (!currentEmail) {
-      setShowSettings(true);
-      return;
-    }
-    
-    setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Syncing' } : e));
-
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
@@ -117,19 +109,13 @@ const App: React.FC = () => {
           transcription: entry.transcription,
           type: entry.type,
           reminderDate: reminderDate || '',
-          targetEmail: currentEmail
+          targetEmail: email
         })
       });
-      
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Synced', reminderDate } : e));
     } catch (e: any) {
-      setLastSyncError("Error al contactar con Google.");
       setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Error' } : e));
     }
-  };
-
-  const handleDeleteEntry = (id: string) => {
-    setEntries(prev => prev.filter(e => e.id !== id));
   };
 
   const handleReminderSubmit = async () => {
@@ -153,93 +139,49 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-lg font-black text-slate-800 tracking-tight">Voice2Sheet <span className="text-indigo-600">AI</span></h1>
           </div>
-          
           <div className="flex gap-2">
-            <button 
-              onClick={() => setShowTroubleshoot(true)} 
-              className="p-2.5 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-colors"
-              title="Solucionar Error de Permisos"
-            >
-              <i className="fas fa-bolt"></i>
-            </button>
-            <button 
-              onClick={testAuth} 
-              disabled={isTestingAuth}
-              className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100"
-              title="Test de Conexión"
-            >
-              <i className={`fas ${isTestingAuth ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
-            </button>
-            <button 
-              onClick={() => setShowSettings(true)} 
-              className={`p-2.5 rounded-2xl transition-all border-2 ${email ? 'bg-white border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-500'}`}
-            >
-              <i className="fas fa-cog"></i>
-            </button>
+            <button onClick={() => setShowTroubleshoot(true)} className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100"><i className="fas fa-question-circle"></i></button>
+            <button onClick={testAuth} disabled={isTestingAuth} className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100"><i className={`fas ${isTestingAuth ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i></button>
+            <button onClick={() => setShowSettings(true)} className={`p-2.5 rounded-2xl border-2 ${email ? 'bg-white border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-500'}`}><i className="fas fa-cog"></i></button>
           </div>
         </div>
       </header>
 
       {showTroubleshoot && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-8 animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-8 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-800">Arreglar Error de Permisos</h2>
-              <button onClick={() => setShowTroubleshoot(false)} className="text-slate-400 hover:text-rose-500">
-                <i className="fas fa-times text-xl"></i>
-              </button>
+              <h2 className="text-xl font-black text-slate-800">¿Por qué no me llega el Aviso?</h2>
+              <button onClick={() => setShowTroubleshoot(false)} className="text-slate-400 hover:text-rose-500"><i className="fas fa-times text-xl"></i></button>
             </div>
-            
-            <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
-              <p>El error que has visto ocurre porque no podemos usar <code>Session.getActiveUser()</code> directamente.</p>
-              
+            <div className="space-y-6 text-[13px] text-slate-600 leading-relaxed">
               <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200">
-                <p className="font-bold text-amber-800 mb-2">Haz esto en tu Google Script:</p>
-                <ol className="list-decimal list-inside space-y-3 text-[13px]">
-                  <li>Borra la línea que empieza por <code>var email = Session...</code></li>
-                  <li>Pon tu email a mano así: <br/><code className="bg-white px-2 py-1 rounded border border-amber-200 text-rose-600 block mt-1">var miEmail = "tuemail@gmail.com";</code></li>
-                  <li>Usa <code>miEmail</code> dentro del paréntesis de <code>enviarCorreo</code>.</li>
-                  <li>Dale a <b>Guardar (Disquete)</b> y luego a <b>Ejecutar</b>.</li>
-                </ol>
+                <p className="font-bold text-amber-800 mb-3">PASO 1: Activar el Reloj</p>
+                <p>Para que los recordatorios funcionen, tienes que configurar un <b>"Activador"</b> en Google Script para que se ejecute la función <code>revisarRecordatorios</code> cada minuto.</p>
               </div>
-              
-              <p className="text-[11px] text-slate-400 italic">Esto activará el diálogo de "Revisar Permisos" que necesitas para que los avisos automáticos funcionen.</p>
+              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200">
+                <p className="font-bold text-indigo-800 mb-3">PASO 2: Implementar Versión</p>
+                <p>Si has cambiado el código del script, recuerda darle a <b>Implementar > Gestionar implementaciones > Editar > Versión: Nueva versión</b>. Si no, Google seguirá usando el código viejo.</p>
+              </div>
             </div>
-            
-            <button 
-              onClick={() => setShowTroubleshoot(false)} 
-              className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl"
-            >
-              Ya lo he corregido
-            </button>
+            <button onClick={() => setShowTroubleshoot(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl">¡Entendido!</button>
           </div>
         </div>
       )}
 
       {showSettings && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in duration-300">
-            <h2 className="font-black text-2xl text-slate-800 mb-6 tracking-tight">Tu Email</h2>
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8">
+            <h2 className="font-black text-2xl text-slate-800 mb-6">Configuración</h2>
             <div className="space-y-6">
-              <div className="space-y-3">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email donde recibirás los avisos</label>
-                <input 
-                  type="email"
-                  placeholder="ejemplo@gmail.com"
-                  className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 transition-all font-bold text-slate-700"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    localStorage.setItem('v2s_email', e.target.value);
-                  }}
-                />
-              </div>
-              <button 
-                onClick={() => setShowSettings(false)} 
-                className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs"
-              >
-                Guardar Configuración
-              </button>
+              <input 
+                type="email"
+                placeholder="tuemail@gmail.com"
+                className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); localStorage.setItem('v2s_email', e.target.value); }}
+              />
+              <button onClick={() => setShowSettings(false)} className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest text-xs">Guardar</button>
             </div>
           </div>
         </div>
@@ -247,61 +189,30 @@ const App: React.FC = () => {
 
       {reminderModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-sm p-10 text-center animate-in slide-in-from-bottom duration-500">
+          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-sm p-10 text-center animate-in slide-in-from-bottom">
             <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8 border-4 border-amber-100 shadow-inner">
               <i className="fas fa-bell text-3xl"></i>
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">Programar</h3>
+            <h3 className="text-2xl font-black text-slate-800 mb-2">Programar Aviso</h3>
             <p className="text-[11px] text-slate-400 mb-8 px-4 font-bold italic">"{reminderModal.tempTranscription}"</p>
             <input 
               type="datetime-local"
-              className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-8 text-sm outline-none focus:border-amber-500 font-bold text-slate-700"
+              className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-8 text-sm outline-none font-bold text-slate-700"
               value={selectedReminderDate}
               onChange={(e) => setSelectedReminderDate(e.target.value)}
             />
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={handleReminderSubmit}
-                disabled={!selectedReminderDate}
-                className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl uppercase tracking-widest text-xs"
-              >
-                Activar Aviso
-              </button>
-              <button onClick={() => setReminderModal({isOpen:false, entryId:null, tempTranscription:''})} className="text-xs text-slate-400 font-bold">Cancelar</button>
-            </div>
+            <button onClick={handleReminderSubmit} disabled={!selectedReminderDate} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl uppercase tracking-widest text-xs">Confirmar</button>
           </div>
         </div>
       )}
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-5 space-y-8">
+          <div className="lg:col-span-5">
             <Recorder onRecordingComplete={handleRecordingComplete} isProcessing={isProcessing} />
-            
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200">
-              <h4 className="font-black text-slate-800 text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
-                <i className="fas fa-circle-info text-indigo-500"></i> Estado del Sistema
-              </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-[11px]">
-                  <span className="text-slate-400">Micro y IA:</span>
-                  <span className="font-black text-emerald-500">LISTO</span>
-                </div>
-                <div className="flex justify-between items-center text-[11px]">
-                  <span className="text-slate-400">URL del Script:</span>
-                  <span className="font-black text-emerald-500">CONECTADO</span>
-                </div>
-                <div className="flex justify-between items-center text-[11px]">
-                  <span className="text-slate-400">Email Destino:</span>
-                  <span className={`font-black ${email ? 'text-emerald-500' : 'text-rose-500 animate-pulse'}`}>
-                    {email ? 'CONFIGURADO' : 'PENDIENTE'}
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
           <div className="lg:col-span-7">
-            <HistoryTable entries={entries} onDeleteEntry={handleDeleteEntry} />
+            <HistoryTable entries={entries} onDeleteEntry={(id) => setEntries(prev => prev.filter(e => e.id !== id))} />
           </div>
         </div>
       </main>
