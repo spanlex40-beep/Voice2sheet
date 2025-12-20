@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [isTestingAuth, setIsTestingAuth] = useState(false);
   
   const [reminderModal, setReminderModal] = useState<{
     isOpen: boolean;
@@ -66,6 +67,33 @@ const App: React.FC = () => {
       setEntries(prev => prev.map(e => e.id === entryId ? { ...e, transcription: "Error de IA o Micrófono", status: 'Error' } : e));
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const testAuth = async () => {
+    if (!email) {
+      setShowSettings(true);
+      return;
+    }
+    setIsTestingAuth(true);
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'note',
+          transcription: "🔴 TEST DE CONEXIÓN: Si recibes esto, el sistema funciona.",
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString(),
+          targetEmail: email
+        })
+      });
+      alert("Petición de prueba enviada. Revisa tu email (y carpeta SPAM) en 1 minuto.");
+    } catch (e) {
+      alert("Error al contactar con el Script. Revisa la URL.");
+    } finally {
+      setIsTestingAuth(false);
     }
   };
 
@@ -129,24 +157,31 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <div className={`w-1.5 h-1.5 rounded-full ${email ? 'bg-emerald-500 animate-pulse' : 'bg-rose-400'}`}></div>
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                  {email ? 'Listo para agendar' : 'Email pendiente'}
+                  {email ? 'Sistema de Avisos Listo' : 'Email pendiente'}
                 </span>
               </div>
             </div>
           </div>
           
           <div className="flex gap-2">
+             <button 
+              onClick={testAuth} 
+              disabled={isTestingAuth}
+              className={`p-2.5 rounded-2xl transition-all border ${isTestingAuth ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100'}`}
+              title="Probar Conexión Email"
+            >
+              <i className={`fas ${isTestingAuth ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
+            </button>
             <button 
               onClick={() => setShowTroubleshoot(true)} 
               className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
-              title="Configurar Reloj"
+              title="Ayuda técnica"
             >
-              <i className="fas fa-clock"></i>
+              <i className="fas fa-life-ring"></i>
             </button>
             <button 
               onClick={() => setShowSettings(true)} 
               className={`p-2.5 rounded-2xl transition-all border-2 ${email ? 'bg-white border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-500'}`}
-              title="Ajustes"
             >
               <i className={`fas ${email ? 'fa-cog' : 'fa-envelope'} text-lg`}></i>
             </button>
@@ -161,13 +196,12 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL DE AYUDA PROGRAMACIÓN */}
       {showTroubleshoot && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-8 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                <i className="fas fa-magic text-indigo-500"></i> ¿Cómo funciona el Aviso?
+                <i className="fas fa-microchip text-indigo-500"></i> ¿No recibes correos?
               </h2>
               <button onClick={() => setShowTroubleshoot(false)} className="text-slate-400 hover:text-rose-500">
                 <i className="fas fa-times text-xl"></i>
@@ -175,24 +209,27 @@ const App: React.FC = () => {
             </div>
             
             <div className="space-y-6 text-sm text-slate-600">
-              <p className="bg-amber-50 text-amber-700 p-4 rounded-xl border border-amber-100 font-medium italic">
-                "Las notas se envían al instante. Los recordatorios esperan a su hora gracias al Activador que has creado en Google."
-              </p>
+              <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100">
+                <p className="font-bold text-rose-800 text-xs mb-2 uppercase">IMPORTANTE: Autorización Forzada</p>
+                <p className="text-[11px] mb-4">Si al crear el activador no te pidió permiso, Google puede estar bloqueando el envío. Haz esto:</p>
+                <ol className="list-decimal list-inside space-y-2 text-[11px] font-medium">
+                  <li>En el editor de Google Script, selecciona la función <b><code>testPermisos</code></b> arriba.</li>
+                  <li>Pulsa el botón <b>Ejecutar</b> (el triángulo de Play).</li>
+                  <li>Te saltará una ventana de "Revisar permisos". <b>Acepta todo</b> (Avanzado -> Ir a Conector Voz).</li>
+                  <li>Una vez hecho, el "reloj" ya tendrá permiso para enviar correos solo.</li>
+                </ol>
+              </div>
 
               <div className="space-y-4">
-                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest border-b pb-2">Verificación final</h3>
+                <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Otras causas:</h3>
                 <ul className="space-y-3">
                   <li className="flex gap-2">
-                    <i className="fas fa-check-circle text-emerald-500 mt-0.5"></i>
-                    <span>Has pegado el código con <code>checkReminders</code> en Código.gs</span>
+                    <i className="fas fa-clock text-indigo-500 mt-0.5"></i>
+                    <span><b>Zona Horaria:</b> En Google Script, ve a Ajustes (engranaje) y asegúrate de que la Zona Horaria sea la misma que tu país.</span>
                   </li>
                   <li className="flex gap-2">
-                    <i className="fas fa-check-circle text-emerald-500 mt-0.5"></i>
-                    <span>Has creado el activador "Cada minuto" como en tu captura de pantalla.</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <i className="fas fa-check-circle text-emerald-500 mt-0.5"></i>
-                    <span>Has configurado tu email en el icono de la carta arriba a la derecha.</span>
+                    <i className="fas fa-envelope-open text-indigo-500 mt-0.5"></i>
+                    <span><b>Spam:</b> Revisa siempre la carpeta de Correo No Deseado.</span>
                   </li>
                 </ul>
               </div>
@@ -202,7 +239,7 @@ const App: React.FC = () => {
               onClick={() => setShowTroubleshoot(false)} 
               className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl transition-all uppercase tracking-widest text-xs"
             >
-              ¡Todo listo!
+              Hecho
             </button>
           </div>
         </div>
@@ -212,21 +249,18 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="font-black text-2xl text-slate-800 tracking-tight">Ajustes</h2>
-                <p className="text-[10px] text-indigo-600 uppercase font-black tracking-widest mt-1">Configuración de Envío</p>
-              </div>
-              <button onClick={() => setShowSettings(false)} className="bg-slate-100 text-slate-400 hover:text-rose-500 p-3 rounded-2xl transition-colors">
+              <h2 className="font-black text-2xl text-slate-800 tracking-tight">Ajustes</h2>
+              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-rose-500 p-3">
                 <i className="fas fa-times text-xl"></i>
               </button>
             </div>
             
             <div className="space-y-6">
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tu Email Destino</label>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Destino</label>
                 <input 
                   type="email"
-                  placeholder="ejemplo@gmail.com"
+                  placeholder="tuemail@gmail.com"
                   className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 transition-all font-bold text-slate-700"
                   value={email}
                   onChange={(e) => {
@@ -234,11 +268,6 @@ const App: React.FC = () => {
                     localStorage.setItem('v2s_email', e.target.value);
                   }}
                 />
-              </div>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <p className="text-[10px] text-slate-400 font-black uppercase mb-2">URL Webhook</p>
-                <code className="text-[9px] text-slate-500 block truncate font-mono">{GOOGLE_SCRIPT_URL}</code>
               </div>
 
               <button 
@@ -268,21 +297,13 @@ const App: React.FC = () => {
               onChange={(e) => setSelectedReminderDate(e.target.value)}
             />
             
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={handleReminderSubmit}
-                disabled={!selectedReminderDate}
-                className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl active:scale-95 transition-all uppercase tracking-widest text-xs"
-              >
-                Confirmar Aviso
-              </button>
-              <button 
-                onClick={() => setReminderModal({ isOpen: false, entryId: null, tempTranscription: '' })}
-                className="text-[10px] font-black text-slate-400 uppercase tracking-widest py-2 hover:text-rose-500"
-              >
-                Cerrar
-              </button>
-            </div>
+            <button 
+              onClick={handleReminderSubmit}
+              disabled={!selectedReminderDate}
+              className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl active:scale-95 transition-all uppercase tracking-widest text-xs"
+            >
+              Agendar Recordatorio
+            </button>
           </div>
         </div>
       )}
@@ -292,25 +313,18 @@ const App: React.FC = () => {
           <div className="lg:col-span-5 space-y-8">
             <Recorder onRecordingComplete={handleRecordingComplete} isProcessing={isProcessing} />
             
-            <div className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden text-white group">
-              <div className="relative z-10">
-                <h4 className="font-black text-indigo-200 text-xs uppercase tracking-widest mb-6">Estado Global</h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                    <span className="text-xs opacity-70">Sincronización Excel</span>
-                    <span className="text-xs font-black text-emerald-300">ONLINE</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                    <span className="text-xs opacity-70">Cola de Avisos</span>
-                    <span className="text-xs font-black text-amber-300">ESPERANDO HORA</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs opacity-70">Inteligencia Artificial</span>
-                    <span className="text-xs font-black text-emerald-300">READY</span>
-                  </div>
-                </div>
+            <div className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl text-white">
+              <h4 className="font-black text-indigo-200 text-xs uppercase tracking-widest mb-4">Estado de la conexión</h4>
+              <div className="flex items-center justify-between text-xs mb-3 border-b border-white/10 pb-2">
+                <span>Activador Google</span>
+                <span className="font-black text-emerald-300">CONFIGURADO</span>
               </div>
-              <i className="fas fa-robot absolute -bottom-8 -right-8 text-8xl text-white/10 group-hover:rotate-12 transition-transform"></i>
+              <div className="flex items-center justify-between text-xs">
+                <span>Email configurado</span>
+                <span className={`font-black ${email ? 'text-emerald-300' : 'text-rose-300 animate-pulse'}`}>
+                  {email ? 'SÍ' : 'NO'}
+                </span>
+              </div>
             </div>
           </div>
             
@@ -324,7 +338,7 @@ const App: React.FC = () => {
         <div className="inline-flex items-center gap-3 px-6 py-3 bg-white rounded-full border border-slate-200 shadow-sm">
           <div className={`w-2 h-2 rounded-full ${email ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}></div>
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            {email ? `Cuenta activa: ${email}` : 'Sin email configurado'}
+            {email ? `Cuenta activa: ${email}` : 'Falta configurar email destino'}
           </span>
         </div>
       </footer>
