@@ -13,7 +13,6 @@ const App: React.FC = () => {
   const [email, setEmail] = useState(localStorage.getItem('v2s_email') || '');
   const [showSettings, setShowSettings] = useState(false);
   
-  // Estado para creación/edición
   const [editingEntry, setEditingEntry] = useState<{
     id?: string;
     text: string;
@@ -57,7 +56,7 @@ const App: React.FC = () => {
 
   const showNativeNotification = (entry: LogEntry) => {
     if (Notification.permission === "granted") {
-      new Notification("🔔 Recordatorio: " + entry.date, {
+      new Notification("🔔 Tarea Pendiente", {
         body: entry.transcription,
         icon: "https://cdn-icons-png.flaticon.com/512/5968/5968517.png"
       });
@@ -83,16 +82,14 @@ const App: React.FC = () => {
     if (!editingEntry) return;
 
     if (editingEntry.id) {
-      // Editar existente
       setEntries(prev => prev.map(e => e.id === editingEntry.id ? {
         ...e,
         transcription: editingEntry.text,
         reminderDate: editingEntry.date,
         type: editingEntry.date ? 'reminder' : 'note',
-        isNotified: false // Al editar, reiniciamos el aviso si se cambia la fecha
+        isNotified: false 
       } : e));
     } else {
-      // Crear nuevo
       const now = new Date();
       const newEntry: LogEntry = {
         id: Math.random().toString(36).substring(2, 11),
@@ -133,12 +130,11 @@ const App: React.FC = () => {
             <h1 className="text-sm font-black text-slate-800 uppercase tracking-widest">Smart <span className="text-indigo-600">Tasks</span></h1>
           </div>
           <button onClick={() => setShowSettings(true)} className="p-2 text-slate-400">
-            <i className="fas fa-cog"></i>
+            <i className="fas fa-question-circle"></i>
           </button>
         </div>
       </header>
 
-      {/* MODAL DE EDICIÓN/CONFIRMACIÓN */}
       {editingEntry && (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-300">
@@ -149,7 +145,6 @@ const App: React.FC = () => {
                 </div>
                 <h2 className="text-2xl font-black text-slate-800">{editingEntry.id ? 'Editar Tarea' : 'Nueva Tarea'}</h2>
               </div>
-
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contenido</label>
@@ -159,7 +154,6 @@ const App: React.FC = () => {
                     onChange={(e) => setEditingEntry({...editingEntry, text: e.target.value})}
                   />
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Aviso (Opcional)</label>
                   <input 
@@ -170,10 +164,9 @@ const App: React.FC = () => {
                   />
                 </div>
               </div>
-
               <div className="flex gap-4">
                 <button onClick={() => setEditingEntry(null)} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase tracking-widest text-[10px]">Cancelar</button>
-                <button onClick={saveEntry} className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 uppercase tracking-widest text-[10px]">Guardar Cambios</button>
+                <button onClick={saveEntry} className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 uppercase tracking-widest text-[10px]">Guardar</button>
               </div>
             </div>
           </div>
@@ -181,13 +174,34 @@ const App: React.FC = () => {
       )}
 
       {showSettings && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm p-8">
-            <h2 className="font-black text-xl text-slate-800 mb-6">Ajustes</h2>
-            <div className="space-y-4">
-              <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full py-4 bg-rose-50 text-rose-600 font-black rounded-xl uppercase tracking-widest text-[10px] border border-rose-100">Resetear App</button>
-              <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-slate-800 text-white font-black rounded-xl uppercase tracking-widest text-[10px]">Cerrar</button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-[3rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-sm p-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-black text-xl text-slate-800">Ayuda y Ajustes</h2>
+              <button onClick={() => setShowSettings(false)} className="text-slate-300"><i className="fas fa-times-circle text-xl"></i></button>
             </div>
+            
+            <div className="space-y-6">
+              <div className="bg-indigo-50 rounded-2xl p-4">
+                <h3 className="text-[10px] font-black text-indigo-600 uppercase mb-3">¿Cómo instalar en el móvil?</h3>
+                <div className="space-y-3 text-xs font-bold text-slate-600">
+                  <div className="flex gap-3">
+                    <i className="fab fa-apple text-lg"></i>
+                    <p>En <span className="text-indigo-600">iOS (Safari)</span>: Botón compartir <i className="fas fa-share-square"></i> y "Añadir a pantalla de inicio".</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <i className="fab fa-android text-lg"></i>
+                    <p>En <span className="text-indigo-600">Android (Chrome)</span>: Menú <i className="fas fa-ellipsis-v"></i> e "Instalar aplicación".</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Limpieza total</label>
+                <button onClick={() => { if(confirm("¿Borrar TODO?")) { localStorage.clear(); window.location.reload(); } }} className="w-full py-4 bg-rose-50 text-rose-600 font-black rounded-xl uppercase tracking-widest text-[10px] border border-rose-100">Resetear Aplicación</button>
+              </div>
+            </div>
+            <button onClick={() => setShowSettings(false)} className="w-full mt-8 py-4 bg-slate-800 text-white font-black rounded-xl uppercase tracking-widest text-[10px]">Entendido</button>
           </div>
         </div>
       )}
@@ -195,7 +209,6 @@ const App: React.FC = () => {
       <main className="flex-1 max-w-lg w-full mx-auto px-6 py-10 space-y-12">
         <Recorder onRecordingComplete={handleRecordingComplete} isProcessing={isProcessing} />
         
-        {/* SECCIÓN PENDIENTES */}
         <div className="space-y-4">
           <div className="flex justify-between items-center px-2">
             <div className="flex items-center gap-2">
@@ -214,7 +227,6 @@ const App: React.FC = () => {
           />
         </div>
 
-        {/* SECCIÓN AVISADOS */}
         <div className="space-y-4">
           <div className="flex justify-between items-center px-2">
             <div className="flex items-center gap-2">
