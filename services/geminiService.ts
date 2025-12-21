@@ -1,13 +1,19 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIResponse } from "../types";
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<AIResponse> => {
-  // Se obtiene la API_KEY de las variables de entorno configuradas en Vercel
-  const apiKey = process.env.API_KEY;
-  
+  // Safe extraction of API key for standard web environments
+  let apiKey = '';
+  try {
+    apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) 
+      ? process.env.API_KEY 
+      : (window as any).process?.env?.API_KEY || '';
+  } catch (e) {
+    apiKey = '';
+  }
+
   if (!apiKey) {
-    throw new Error("Falta API_KEY en la configuración del servidor.");
+    throw new Error("No se detectó la clave de API (API_KEY).");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -18,7 +24,7 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: [{
+      contents: {
         parts: [
           {
             inlineData: {
@@ -33,14 +39,14 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
             {"text": "transcripción aquí", "detectedDate": "YYYY-MM-DDTHH:mm" o null}`,
           },
         ],
-      }],
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             text: { type: Type.STRING },
-            detectedDate: { type: Type.STRING, nullable: true }
+            detectedDate: { type: Type.STRING }
           },
           required: ["text"]
         }
@@ -54,6 +60,6 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
     };
   } catch (error) {
     console.error("Error Gemini:", error);
-    throw new Error("Error procesando audio. Verifica conexión y API Key.");
+    throw new Error("Error en la conexión con la IA.");
   }
 };
