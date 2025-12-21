@@ -1,39 +1,52 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
+import { AIResponse } from "../types";
 
-// Use recommended initialization from @google/genai
-const ai = new GoogleGenAI({
-  apiKey: import.meta.env.VITE_GEMINI_API_KEY
-});
+export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<AIResponse> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-
-export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
   try {
-    // Calling generateContent with the model name and prompt parts as per guidelines
+    const cleanMimeType = mimeType.split(';')[0];
+    
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: {
+      contents: [{
         parts: [
           {
             inlineData: {
-              mimeType: mimeType,
+              mimeType: cleanMimeType,
               data: base64Audio,
             },
           },
           {
-            text: "Transcribe the provided audio accurately. Return only the transcription text, nothing else. If there is no speech, return '[No speech detected]'.",
+            text: `Transcribe el audio y extrae cualquier intención de fecha o tiempo futuro. 
+            IMPORTANTE: La fecha actual es ${new Date().toLocaleString()}.
+            Si el usuario dice algo como "mañana", "el lunes" o "en 5 minutos", calcula la fecha exacta.
+            Devuelve un JSON con:
+            1. "text": La transcripción literal.
+            2. "detectedDate": La fecha calculada en formato ISO (YYYY-MM-DDTHH:mm) si existe, o null.`,
           },
         ],
-      },
+      }],
       config: {
-        temperature: 0.1,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            text: { type: Type.STRING },
+            detectedDate: { type: Type.STRING, description: "ISO 8601 format" }
+          },
+          required: ["text"]
+        }
       }
     });
 
-    // Access .text property directly (not a method) as per guidelines
-    return response.text || "[Transcription failed]";
-  } catch (error) {
-    console.error("Transcription error:", error);
-    throw new Error("Failed to transcribe audio with Gemini AI.");
+    const result = JSON.parse(response.text || "{}");
+    return {
+      text: result.text || "Sin transcripción",
+      detectedDate: result.detectedDate || undefined
+    };
+  } catch (error: any) {
+    console.error("Error Gemini:", error);
+    throw new Error("La IA no pudo procesar el audio.");
   }
-};
