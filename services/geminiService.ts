@@ -1,8 +1,9 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+mport { GoogleGenAI, Type } from "@google/genai";
 import { AIResponse } from "../types";
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<AIResponse> => {
+  // Inicialización del cliente de IA usando la API KEY del entorno
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
@@ -50,3 +51,4 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
     console.error("Error Gemini:", error);
     throw new Error("La IA no pudo procesar el audio.");
   }
+};
