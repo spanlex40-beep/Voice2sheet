@@ -5,13 +5,13 @@ export interface LogEntry {
   time: string;
   transcription: string;
   duration: string;
-  status: 'Syncing' | 'Synced' | 'Error';
+  status: 'Syncing' | 'Synced' | 'Error' | 'Scheduled';
   type: 'note' | 'reminder';
   reminderDate?: string;
+  isNotified?: boolean; // Nuevo: rastrea si el aviso ya ocurrió
 }
 
-export interface AppSettings {
-  webhookUrl: string;
-  language: string;
-  email: string;
+export interface AIResponse {
+  text: string;
+  detectedDate?: string; // ISO String
 }
