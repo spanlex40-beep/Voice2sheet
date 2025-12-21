@@ -9,11 +9,11 @@ if (rootElement) {
   root.render(<App />);
 }
 
-// Registro simplificado y robusto del Service Worker
+// Registro con ruta absoluta para evitar conflictos de subdirectorios
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('SW listo'))
-      .catch(err => console.log('SW error', err));
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('Service Worker registrado en:', reg.scope))
+      .catch(err => console.error('Fallo al registrar Service Worker:', err));
   });
 }
