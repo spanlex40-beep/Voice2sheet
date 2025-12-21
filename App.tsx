@@ -5,12 +5,12 @@ import { HistoryTable } from './components/HistoryTable';
 import { LogEntry, AIResponse } from './types';
 import { transcribeAudio } from './services/geminiService';
 
+// Reemplaza esto con tu URL de Google Apps Script cuando la tengas
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytmXCpeBF-LEYkpZtXC_NAYYB-JpSjZKK0wXRQY99G7PbYOayxwjfbuKB3tzz9RCW4/exec"; 
 
 const App: React.FC = () => {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [email, setEmail] = useState(localStorage.getItem('v2s_email') || '');
   const [showSettings, setShowSettings] = useState(false);
   
   const [editingEntry, setEditingEntry] = useState<{
@@ -63,6 +63,22 @@ const App: React.FC = () => {
     }
   };
 
+  const syncWithGoogleSheets = async (entry: LogEntry) => {
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Importante para evitar problemas de CORS con Apps Script
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(entry),
+      });
+      console.log('Syncing status: Sended to Google Sheets');
+    } catch (error) {
+      console.error('Error syncing with Google Sheets:', error);
+    }
+  };
+
   const handleRecordingComplete = async (base64Data: string, mimeType: string, durationSeconds: number) => {
     setIsProcessing(true);
     try {
@@ -81,14 +97,23 @@ const App: React.FC = () => {
   const saveEntry = async () => {
     if (!editingEntry) return;
 
+    let targetEntry: LogEntry;
+
     if (editingEntry.id) {
-      setEntries(prev => prev.map(e => e.id === editingEntry.id ? {
-        ...e,
-        transcription: editingEntry.text,
-        reminderDate: editingEntry.date,
-        type: editingEntry.date ? 'reminder' : 'note',
-        isNotified: false 
-      } : e));
+      setEntries(prev => prev.map(e => {
+        if (e.id === editingEntry.id) {
+          const updated = {
+            ...e,
+            transcription: editingEntry.text,
+            reminderDate: editingEntry.date,
+            type: (editingEntry.date ? 'reminder' : 'note') as 'reminder' | 'note',
+            isNotified: false 
+          };
+          targetEntry = updated;
+          return updated;
+        }
+        return e;
+      }));
     } else {
       const now = new Date();
       const newEntry: LogEntry = {
@@ -102,8 +127,15 @@ const App: React.FC = () => {
         reminderDate: editingEntry.date,
         isNotified: false
       };
+      targetEntry = newEntry;
       setEntries(prev => [newEntry, ...prev]);
     }
+    
+    // @ts-ignore - ya que targetEntry se asigna en ambos bloques
+    if (targetEntry) {
+      syncWithGoogleSheets(targetEntry);
+    }
+
     setEditingEntry(null);
   };
 
