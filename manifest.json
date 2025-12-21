@@ -1,23 +1,15 @@
 
-{
-  "short_name": "Voice2Sheet",
+"short_name": "Voice2Sheet",
   "name": "Voice2Sheet AI Transcription",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/5968/5968517.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "start_url": "/",
-  "scope": "/",
+  "start_url": ".",
   "display": "standalone",
   "theme_color": "#4f46e5",
   "background_color": "#f8fafc"
