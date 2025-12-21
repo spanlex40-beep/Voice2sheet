@@ -16,30 +16,41 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
     body { 
       font-family: 'Inter', sans-serif; 
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: contain;
       background-color: #f8fafc;
       margin: 0;
+      color: #1e293b;
     }
-    .safe-top { padding-top: env(safe-area-inset-top); }
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    #root:empty::before {
+      content: 'INICIANDO IA...';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: 0.3em;
+      color: #6366f1;
+      background: #f8fafc;
+    }
   </style>
   <script type="importmap">
-  {
-    "imports": {
-      "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-      "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-      "react/": "https://esm.sh/react@^19.2.3/",
-      "react": "https://esm.sh/react@^19.2.3"
-    }
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@1.34.0",
+    "react": "https://esm.sh/react@19.2.3",
+    "react-dom": "https://esm.sh/react-dom@19.2.3",
+    "react-dom/client": "https://esm.sh/react-dom@19.2.3/client",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
-  </script>
+}
+</script>
 </head>
 <body>
   <div id="root"></div>
-  <!-- El archivo index.tsx se cargará automáticamente como módulo por el sistema -->
 </body>
 </html>
+
