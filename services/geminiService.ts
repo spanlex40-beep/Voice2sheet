@@ -2,12 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIResponse } from "../types";
 
-/**
- * Transcribe un audio usando Gemini 3 Flash y detecta fechas automáticamente.
- * La API KEY se obtiene de la variable de entorno process.env.API_KEY configurada en el sistema.
- */
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<AIResponse> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("API_KEY no encontrada. Configúrala en Vercel (Environment Variables).");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   try {
     const cleanMimeType = mimeType.split(';')[0];
@@ -23,14 +25,8 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
             },
           },
           {
-            text: `Transcribe el audio y detecta intenciones de recordatorios. 
-            Fecha actual: ${new Date().toLocaleString()}.
-            Si detectas una fecha (ej: "mañana a las 5", "el lunes"), calcula el ISO exacto.
-            Responde SOLO en JSON con:
-            {
-              "text": "transcripción completa",
-              "detectedDate": "YYYY-MM-DDTHH:mm o null"
-            }`,
+            text: `Transcribe el audio. Si detectas una fecha futura (mañana, lunes, etc.), calcúlala basándote en hoy: ${new Date().toLocaleString()}. 
+            Responde estrictamente en JSON: {"text": "...", "detectedDate": "YYYY-MM-DDTHH:mm" o null}`,
           },
         ],
       }],
@@ -40,7 +36,7 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
           type: Type.OBJECT,
           properties: {
             text: { type: Type.STRING },
-            detectedDate: { type: Type.STRING, nullable: true }
+            detectedDate: { type: Type.STRING }
           },
           required: ["text"]
         }
@@ -53,7 +49,7 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
       detectedDate: result.detectedDate || undefined
     };
   } catch (error) {
-    console.error("Error en servicio Gemini:", error);
-    throw new Error("No se pudo procesar el audio. Verifica tu API_KEY en las variables de entorno.");
+    console.error("Gemini Error:", error);
+    throw new Error("La IA no pudo procesar el audio correctamente.");
   }
 };
