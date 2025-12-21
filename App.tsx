@@ -2,29 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import { Recorder } from './components/Recorder';
 import { HistoryTable } from './components/HistoryTable';
-import { LogEntry } from './types';
+import { LogEntry, AIResponse } from './types';
 import { transcribeAudio } from './services/geminiService';
 
-// --- ⚠️ ¡IMPORTANTE! PEGA AQUÍ TU URL DE GOOGLE SCRIPT (LA QUE TERMINA EN /exec) ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh9BhYK3UFstnV30btL5Y955j7KHMQqIylpY5r4A8jLAkO8zOAYyU_ttJc92rIz5-h/exec"; 
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytmXCpeBF-LEYkpZtXC_NAYYB-JpSjZKK0wXRQY99G7PbYOayxwjfbuKB3tzz9RCW4/exec"; 
 
 const App: React.FC = () => {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [email, setEmail] = useState(localStorage.getItem('v2s_email') || '');
   const [showSettings, setShowSettings] = useState(false);
-  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
-  const [isTestingAuth, setIsTestingAuth] = useState(false);
   
-  const [reminderModal, setReminderModal] = useState<{
-    isOpen: boolean;
-    entryId: string | null;
-    tempTranscription: string;
-  }>({ isOpen: false, entryId: null, tempTranscription: '' });
-  
-  const [selectedReminderDate, setSelectedReminderDate] = useState('');
+  // Estado para creación/edición
+  const [editingEntry, setEditingEntry] = useState<{
+    id?: string;
+    text: string;
+    date: string;
+  } | null>(null);
 
   useEffect(() => {
+    if ("Notification" in window) {
+      Notification.requestPermission();
+    }
     const saved = localStorage.getItem('v2s_entries');
     if (saved) setEntries(JSON.parse(saved));
   }, []);
@@ -33,196 +32,204 @@ const App: React.FC = () => {
     localStorage.setItem('v2s_entries', JSON.stringify(entries));
   }, [entries]);
 
-  const handleRecordingComplete = async (base64Data: string, mimeType: string, durationSeconds: number, type: 'note' | 'reminder') => {
-    if (!email) {
-      alert("⚠️ Configura tu email en el icono del engranaje.");
-      setShowSettings(true);
-      return;
-    }
+  useEffect(() => {
+    const interval = setInterval(checkReminders, 15000);
+    return () => clearInterval(interval);
+  }, [entries]);
 
-    setIsProcessing(true);
+  const checkReminders = () => {
     const now = new Date();
-    const entryId = Math.random().toString(36).substring(2, 11);
-    
-    const newEntry: LogEntry = {
-      id: entryId,
-      date: now.toLocaleDateString(),
-      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      transcription: 'Transcribiendo...',
-      duration: `${durationSeconds}s`,
-      status: 'Syncing',
-      type: type
-    };
-
-    setEntries(prev => [newEntry, ...prev]);
-
-    try {
-      const text = await transcribeAudio(base64Data, mimeType);
-      const updatedEntry = { ...newEntry, transcription: text };
-      setEntries(prev => prev.map(e => e.id === entryId ? updatedEntry : e));
-
-      if (type === 'reminder') {
-        setReminderModal({ isOpen: true, entryId, tempTranscription: text });
-      } else {
-        await sendToWebhook(updatedEntry);
+    let hasChanges = false;
+    const newEntries = entries.map(entry => {
+      if (entry.reminderDate && !entry.isNotified) {
+        const remDate = new Date(entry.reminderDate);
+        if (remDate <= now) {
+          showNativeNotification(entry);
+          hasChanges = true;
+          return { ...entry, isNotified: true };
+        }
       }
+      return entry;
+    });
+
+    if (hasChanges) setEntries(newEntries);
+  };
+
+  const showNativeNotification = (entry: LogEntry) => {
+    if (Notification.permission === "granted") {
+      new Notification("🔔 Recordatorio: " + entry.date, {
+        body: entry.transcription,
+        icon: "https://cdn-icons-png.flaticon.com/512/5968/5968517.png"
+      });
+    }
+  };
+
+  const handleRecordingComplete = async (base64Data: string, mimeType: string, durationSeconds: number) => {
+    setIsProcessing(true);
+    try {
+      const aiResult: AIResponse = await transcribeAudio(base64Data, mimeType);
+      setEditingEntry({
+        text: aiResult.text,
+        date: aiResult.detectedDate || '',
+      });
     } catch (err: any) {
-      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, transcription: "Error", status: 'Error' } : e));
+      alert("Error de IA: " + err.message);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const testAuth = async () => {
-    if (!email) { setShowSettings(true); return; }
-    setIsTestingAuth(true);
-    try {
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'note',
-          transcription: "🧪 PRUEBA MANUAL: La conexión funciona.",
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString(),
-          targetEmail: email
-        })
-      });
-      alert("Petición enviada. Revisa tu Excel.");
-    } catch (e) {
-      alert("Error de conexión con el Script.");
-    } finally {
-      setIsTestingAuth(false);
+  const saveEntry = async () => {
+    if (!editingEntry) return;
+
+    if (editingEntry.id) {
+      // Editar existente
+      setEntries(prev => prev.map(e => e.id === editingEntry.id ? {
+        ...e,
+        transcription: editingEntry.text,
+        reminderDate: editingEntry.date,
+        type: editingEntry.date ? 'reminder' : 'note',
+        isNotified: false // Al editar, reiniciamos el aviso si se cambia la fecha
+      } : e));
+    } else {
+      // Crear nuevo
+      const now = new Date();
+      const newEntry: LogEntry = {
+        id: Math.random().toString(36).substring(2, 11),
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        transcription: editingEntry.text,
+        duration: "0s",
+        status: 'Synced',
+        type: editingEntry.date ? 'reminder' : 'note',
+        reminderDate: editingEntry.date,
+        isNotified: false
+      };
+      setEntries(prev => [newEntry, ...prev]);
+    }
+    setEditingEntry(null);
+  };
+
+  const clearList = (type: 'pending' | 'notified') => {
+    if (confirm(`¿Borrar todas las notas ${type === 'pending' ? 'pendientes' : 'ya avisadas'}?`)) {
+      setEntries(prev => prev.filter(e => {
+        const isEntryNotified = e.reminderDate && e.isNotified;
+        return type === 'pending' ? isEntryNotified : !isEntryNotified;
+      }));
     }
   };
 
-  const sendToWebhook = async (entry: LogEntry, reminderDate?: string) => {
-    try {
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: entry.date,
-          time: entry.time,
-          transcription: entry.transcription,
-          type: entry.type,
-          reminderDate: reminderDate || '',
-          targetEmail: email
-        })
-      });
-      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Synced', reminderDate } : e));
-    } catch (e: any) {
-      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'Error' } : e));
-    }
-  };
-
-  const handleReminderSubmit = async () => {
-    if (!reminderModal.entryId) return;
-    const entry = entries.find(e => e.id === reminderModal.entryId);
-    if (entry) {
-      const updatedEntry = { ...entry, transcription: reminderModal.tempTranscription };
-      await sendToWebhook(updatedEntry, selectedReminderDate);
-    }
-    setReminderModal({ isOpen: false, entryId: null, tempTranscription: '' });
-    setSelectedReminderDate('');
-  };
+  const pendingEntries = entries.filter(e => !e.reminderDate || !e.isNotified);
+  const notifiedEntries = entries.filter(e => e.reminderDate && e.isNotified);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg rotate-3">
-              <i className="fas fa-microphone-lines text-xl"></i>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none pb-20">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 px-6 py-4 sticky top-0 z-40 safe-top">
+        <div className="max-w-xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center text-white">
+              <i className="fas fa-layer-group text-xs"></i>
             </div>
-            <h1 className="text-lg font-black text-slate-800 tracking-tight">Voice2Sheet <span className="text-indigo-600">AI</span></h1>
+            <h1 className="text-sm font-black text-slate-800 uppercase tracking-widest">Smart <span className="text-indigo-600">Tasks</span></h1>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowTroubleshoot(true)} className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100"><i className="fas fa-key"></i></button>
-            <button onClick={testAuth} disabled={isTestingAuth} className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100"><i className={`fas ${isTestingAuth ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i></button>
-            <button onClick={() => setShowSettings(true)} className={`p-2.5 rounded-2xl border-2 ${email ? 'bg-white border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-500'}`}><i className="fas fa-cog"></i></button>
-          </div>
+          <button onClick={() => setShowSettings(true)} className="p-2 text-slate-400">
+            <i className="fas fa-cog"></i>
+          </button>
         </div>
       </header>
 
-      {showTroubleshoot && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg p-8 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-800">Arreglar Error de Permisos</h2>
-              <button onClick={() => setShowTroubleshoot(false)} className="text-slate-400 hover:text-rose-500"><i className="fas fa-times text-xl"></i></button>
-            </div>
-            <div className="space-y-6 text-[13px] text-slate-600 leading-relaxed">
-              <div className="bg-rose-50 p-5 rounded-2xl border border-rose-200">
-                <p className="font-bold text-rose-800 mb-2 uppercase text-[10px] tracking-widest">🚨 SI TE SALE "INSUFFICIENT PERMISSIONS"</p>
-                <p>Es porque intentamos usar <code>Session.getActiveUser()</code>. Sigue estos pasos para arreglarlo:</p>
-                <ol className="list-decimal list-inside mt-3 space-y-2 ml-2">
-                  <li>Borra la función <b><code>autorizarScript</code></b> vieja en Google Script.</li>
-                  <li>Pega la nueva versión (la que te acabo de dar sin <i>getActiveUser</i>).</li>
-                  <li>Selecciónala arriba y dale a <b>Ejecutar</b>.</li>
-                  <li>Acepta los permisos de Gmail.</li>
-                </ol>
+      {/* MODAL DE EDICIÓN/CONFIRMACIÓN */}
+      {editingEntry && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-8 space-y-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fas fa-pen-nib text-2xl"></i>
+                </div>
+                <h2 className="text-2xl font-black text-slate-800">{editingEntry.id ? 'Editar Tarea' : 'Nueva Tarea'}</h2>
               </div>
-              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200">
-                <p className="font-bold text-indigo-800 mb-2">Paso Final</p>
-                <p>Recuerda siempre darle a <b>Implementar > Nueva versión</b> cada vez que cambies el código en Google, si no la App seguirá llamando al código con error.</p>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contenido</label>
+                  <textarea 
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-slate-700 h-32 outline-none focus:border-indigo-500 transition-all"
+                    value={editingEntry.text}
+                    onChange={(e) => setEditingEntry({...editingEntry, text: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Aviso (Opcional)</label>
+                  <input 
+                    type="datetime-local"
+                    className="w-full p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl font-black text-indigo-700 outline-none"
+                    value={editingEntry.date}
+                    onChange={(e) => setEditingEntry({...editingEntry, date: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button onClick={() => setEditingEntry(null)} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl uppercase tracking-widest text-[10px]">Cancelar</button>
+                <button onClick={saveEntry} className="flex-[2] py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 uppercase tracking-widest text-[10px]">Guardar Cambios</button>
               </div>
             </div>
-            <button onClick={() => setShowTroubleshoot(false)} className="w-full mt-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg">Entendido</button>
           </div>
         </div>
       )}
 
       {showSettings && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md p-8">
-            <h2 className="font-black text-2xl text-slate-800 mb-6">Configuración</h2>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tu Email Destinatario</label>
-                <input 
-                  type="email"
-                  placeholder="tuemail@gmail.com"
-                  className="w-full px-5 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 font-bold"
-                  value={email}
-                  onChange={(e) => { setEmail(e.target.value); localStorage.setItem('v2s_email', e.target.value); }}
-                />
-              </div>
-              <button onClick={() => setShowSettings(false)} className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest text-xs">Guardar</button>
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm p-8">
+            <h2 className="font-black text-xl text-slate-800 mb-6">Ajustes</h2>
+            <div className="space-y-4">
+              <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full py-4 bg-rose-50 text-rose-600 font-black rounded-xl uppercase tracking-widest text-[10px] border border-rose-100">Resetear App</button>
+              <button onClick={() => setShowSettings(false)} className="w-full py-4 bg-slate-800 text-white font-black rounded-xl uppercase tracking-widest text-[10px]">Cerrar</button>
             </div>
           </div>
         </div>
       )}
 
-      {reminderModal.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-sm p-10 text-center animate-in slide-in-from-bottom">
-            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8 border-4 border-amber-100 shadow-inner">
-              <i className="fas fa-bell text-3xl"></i>
+      <main className="flex-1 max-w-lg w-full mx-auto px-6 py-10 space-y-12">
+        <Recorder onRecordingComplete={handleRecordingComplete} isProcessing={isProcessing} />
+        
+        {/* SECCIÓN PENDIENTES */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center px-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.3em]">Pendientes ({pendingEntries.length})</h2>
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Programar Aviso</h3>
-            <p className="text-[11px] text-slate-400 mb-8 px-4 font-bold italic">"{reminderModal.tempTranscription}"</p>
-            <input 
-              type="datetime-local"
-              className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-8 text-sm outline-none font-bold text-slate-700"
-              value={selectedReminderDate}
-              onChange={(e) => setSelectedReminderDate(e.target.value)}
-            />
-            <button onClick={handleReminderSubmit} disabled={!selectedReminderDate} className="w-full py-5 bg-amber-500 text-white font-black rounded-2xl disabled:opacity-30 shadow-xl uppercase tracking-widest text-xs">Confirmar</button>
+            {pendingEntries.length > 0 && (
+              <button onClick={() => clearList('pending')} className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 px-2 py-1 rounded-lg transition-all">Borrar todo</button>
+            )}
           </div>
+          <HistoryTable 
+            entries={pendingEntries} 
+            variant="pending"
+            onDeleteEntry={(id) => setEntries(prev => prev.filter(e => e.id !== id))} 
+            onEditEntry={(entry) => setEditingEntry({ id: entry.id, text: entry.transcription, date: entry.reminderDate || '' })}
+          />
         </div>
-      )}
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-5">
-            <Recorder onRecordingComplete={handleRecordingComplete} isProcessing={isProcessing} />
+        {/* SECCIÓN AVISADOS */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center px-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Ya Avisados ({notifiedEntries.length})</h2>
+            </div>
+            {notifiedEntries.length > 0 && (
+              <button onClick={() => clearList('notified')} className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-100 px-2 py-1 rounded-lg transition-all">Borrar historial</button>
+            )}
           </div>
-          <div className="lg:col-span-7">
-            <HistoryTable entries={entries} onDeleteEntry={(id) => setEntries(prev => prev.filter(e => e.id !== id))} />
-          </div>
+          <HistoryTable 
+            entries={notifiedEntries} 
+            variant="notified"
+            onDeleteEntry={(id) => setEntries(prev => prev.filter(e => e.id !== id))} 
+          />
         </div>
       </main>
     </div>
@@ -230,4 +237,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
