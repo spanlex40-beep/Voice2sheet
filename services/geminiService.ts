@@ -2,25 +2,17 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AIResponse } from "../types";
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<AIResponse> => {
-  // Safe extraction of API key for standard web environments
-  let apiKey = '';
-  try {
-    apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) 
-      ? process.env.API_KEY 
-      : (window as any).process?.env?.API_KEY || '';
-  } catch (e) {
-    apiKey = '';
-  }
-
+  const apiKey = (process.env.API_KEY) || '';
+  
   if (!apiKey) {
-    throw new Error("No se detectó la clave de API (API_KEY).");
+    throw new Error("Clave API no configurada.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
 
   try {
     const cleanMimeType = mimeType.split(';')[0];
-    const timestampActual = new Date().toLocaleString('es-ES');
+    const now = new Date().toLocaleString('es-ES');
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -33,10 +25,9 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
             },
           },
           {
-            text: `Transcribe el audio y detecta si hay una fecha u hora futura. 
-            Referencia de hoy: ${timestampActual}. 
-            Responde estrictamente con este formato JSON: 
-            {"text": "transcripción aquí", "detectedDate": "YYYY-MM-DDTHH:mm" o null}`,
+            text: `Transcribe este audio. Si el usuario menciona una fecha u hora futura (ej: "recuérdame mañana a las 5"), extráela.
+            Fecha actual de referencia: ${now}.
+            IMPORTANTE: Responde SOLO con el JSON solicitado.`,
           },
         ],
       },
@@ -45,21 +36,30 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            text: { type: Type.STRING },
-            detectedDate: { type: Type.STRING }
+            text: { 
+              type: Type.STRING,
+              description: "La transcripción completa y exacta del audio."
+            },
+            detectedDate: { 
+              type: Type.STRING,
+              description: "Fecha y hora en formato ISO (YYYY-MM-DDTHH:mm) si se menciona un futuro, de lo solo enviar nulo."
+            }
           },
           required: ["text"]
         }
       }
     });
 
-    const result = JSON.parse(response.text || "{}");
+    const text = response.text;
+    if (!text) throw new Error("No se recibió respuesta de la IA.");
+    
+    const result = JSON.parse(text);
     return {
-      text: result.text || "No se pudo transcribir",
+      text: result.text || "Transcripción vacía",
       detectedDate: result.detectedDate || undefined
     };
   } catch (error) {
     console.error("Error Gemini:", error);
-    throw new Error("Error en la conexión con la IA.");
+    throw new Error("Error en la conexión con la IA. Verifica tu conexión.");
   }
 };
