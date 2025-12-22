@@ -12,66 +12,55 @@ interface HistoryTableProps {
 export const HistoryTable: React.FC<HistoryTableProps> = ({ entries, variant, onDeleteEntry, onEditEntry }) => {
   if (entries.length === 0) {
     return (
-      <div className="bg-white/50 rounded-[2rem] p-8 text-center border border-slate-100">
-        <p className="text-slate-300 text-[9px] font-black uppercase tracking-widest">
-          {variant === 'pending' ? 'Sin tareas pendientes' : 'Historial vacío'}
-        </p>
+      <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-slate-200">
+        <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i className="fas fa-microphone-slash text-slate-300"></i>
+        </div>
+        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Tu historial está vacío</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-4">
+    <div className="space-y-3">
       {entries.map((entry) => (
         <div 
           key={entry.id} 
-          className={`bg-white rounded-[2rem] p-5 shadow-sm border transition-all duration-300 ${
-            variant === 'pending' 
-              ? 'border-emerald-100' 
-              : 'border-slate-100 opacity-60'
-          }`}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col gap-3 group transition-all active:scale-[0.98]"
         >
-          <div className="flex justify-between items-start mb-3">
+          <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                variant === 'pending' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] ${
+                entry.reminderDate ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'
               }`}>
-                <i className={`fas ${entry.reminderDate ? 'fa-bell' : 'fa-sticky-note'} text-xs`}></i>
+                <i className={`fas ${entry.reminderDate ? 'fa-clock' : 'fa-font'}`}></i>
               </div>
               <div>
-                <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-                  {entry.date} • {entry.time}
-                </div>
+                <h4 className="text-[9px] font-black text-slate-800 uppercase leading-none">{entry.date} <span className="text-slate-300 mx-1">|</span> {entry.time}</h4>
                 {entry.reminderDate && (
-                  <div className={`text-[10px] font-black uppercase mt-0.5 ${
-                    variant === 'pending' ? 'text-indigo-600' : 'text-slate-400'
-                  }`}>
-                    Aviso: {new Date(entry.reminderDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                  </div>
+                  <p className="text-[8px] font-bold text-amber-500 uppercase mt-1">Recordatorio: {new Date(entry.reminderDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
                 )}
               </div>
             </div>
             
-            <div className="flex gap-1">
-              {variant === 'pending' && onEditEntry && (
-                <button 
-                  onClick={() => onEditEntry(entry)}
-                  className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-600 rounded-full transition-all"
-                >
-                  <i className="fas fa-pencil-alt text-xs"></i>
-                </button>
-              )}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => onEditEntry && onEditEntry(entry)}
+                className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+              >
+                <i className="fas fa-pencil-alt text-[10px]"></i>
+              </button>
               <button 
                 onClick={() => onDeleteEntry(entry.id)}
-                className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 rounded-full transition-all"
+                className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-rose-50 hover:text-rose-500 transition-colors"
               >
-                <i className="fas fa-trash text-xs"></i>
+                <i className="fas fa-trash-alt text-[10px]"></i>
               </button>
             </div>
           </div>
 
-          <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50">
-            <p className={`text-sm font-bold leading-relaxed ${variant === 'pending' ? 'text-slate-700' : 'text-slate-400'}`}>
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <p className="text-xs font-semibold text-slate-600 leading-relaxed">
               {entry.transcription}
             </p>
           </div>
