@@ -3,15 +3,23 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Forzar eliminación del loader inmediatamente al entrar al script
-const loader = document.getElementById('app-loader');
-if (loader) {
-  // Pequeño delay para asegurar que el DOM está listo
-  setTimeout(() => loader.remove(), 100);
-}
-
 const rootElement = document.getElementById('root');
+const loader = document.getElementById('app-loader');
+
 if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(<App />);
+  try {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+    
+    // Eliminar el loader una vez renderizado
+    if (loader) {
+      setTimeout(() => {
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 500);
+      }, 300);
+    }
+  } catch (err) {
+    console.error("Error montando React:", err);
+    if (loader) loader.innerHTML = `<p style="color:red; padding:20px; text-align:center;">Error al iniciar. Por favor limpia la caché de tu navegador y recarga.</p>`;
+  }
 }
